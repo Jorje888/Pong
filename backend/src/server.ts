@@ -1,6 +1,6 @@
 import { RoomState } from "./shared/types";
 import { GamePhase } from "./shared/types";
-
+import { gameConstants } from "./shared/types";
 import { createServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
 
@@ -58,14 +58,16 @@ io.on("connection", (socket) => {
               phase: room.phase,
             },
           });
-          io.to(roomId).emit("opponentJoined", {
-            opponentName: username,
-            opponentId: socket.id,
-            updatedGameState: {
-              players: room.players,
-              phase: room.phase,
-            },
-          });
+          io.in(roomId)
+            .except(socket.id)
+            .emit("opponentJoined", {
+              opponentName: username,
+              opponentId: socket.id,
+              updatedGameState: {
+                players: room.players,
+                phase: room.phase,
+              },
+            });
           console.log("Room joined", roomId, "as player two");
         } else {
           // Room is already full
@@ -90,6 +92,7 @@ io.on("connection", (socket) => {
           phase: GamePhase.WAITING_FOR_OPPONENT,
           lastScorerId: null,
           gameLoopIntervalId: null,
+          servingPlayerId: null,
         };
         rooms.set(roomId, newRoom);
         socket.join(roomId);
@@ -107,4 +110,50 @@ io.on("connection", (socket) => {
       }
     }
   );
+
+  socket.on("toggleReady", () => {
+    const socketNumber = Array.from(socket.rooms)[1];
+    const player = rooms.get(socketNumber)?.players[socket.id];
+    const room = rooms.get(socketNumber);
+    if (
+      !player ||
+      !room ||
+      (room.phase !== GamePhase.READY_CHECK &&
+        room.phase !== GamePhase.ACTIVE_GAME)
+    )
+      return;
+    if (room.phase === GamePhase.READY_CHECK) {
+      player.isReady = !player.isReady;
+      io.to(room.id).emit("playerReadyStateUpdate", {
+        playerId: socket.id,
+        isReady: player.isReady,
+      });
+      const allReadyToStart = Object.values(room.players).every(
+        (p) => p.isReady
+      );
+      if (allReadyToStart) {
+        room.phase = GamePhase.ACTIVE_GAME;
+        const player1Id = Object.keys(room.players)[0];
+        const player2Id = Object.keys(room.players)[1];
+        room.players[player1Id].paddleY =
+          gameConstants.GAME_HEIGHT / 2 - gameConstants.PADDLE_HEIGHT / 2;
+        room.players[player2Id].paddleY =
+          gameConstants.GAME_HEIGHT / 2 - gameConstants.PADDLE_HEIGHT / 2;
+        room.ball.x = gameConstants.GAME_WIDTH / 2;
+        room.ball.y = gameConstants.GAME_HEIGHT / 2;
+        room.servingPlayerId = Math.random() < 0.5 ? player1Id : player2Id;
+        room.ball.speed = gameConstants.INITIAL_BALL_SPEED;
+        const angle = (Math.random() * Math.PI) / 2 - Math.PI / 4;
+        room.ball.vy = room.ball.speed * Math.sin(angle);
+        room.ball.vx = room.ball.speed * Math.cos(angle);
+        if (room.servingPlayerId === player2Id) room.ball.vx *= -1;
+        io.to(room.id).emit("gameStarted", {
+          initialBallState: room.ball,
+          initialPlayersState: room.players,
+          servingPlayerId: room.servingPlayerId,
+          phase: room.phase,
+        });
+      }
+    }
+  });
 });

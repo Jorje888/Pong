@@ -7,6 +7,7 @@ export interface GameConstants {
   PADDLE_WIDTH: number;
   BALL_RADIUS: number;
   MAX_SCORE: number;
+  INITIAL_BALL_SPEED: number;
 }
 
 export const gameConstants: GameConstants = {
@@ -16,6 +17,7 @@ export const gameConstants: GameConstants = {
   PADDLE_WIDTH: 20,
   BALL_RADIUS: 10,
   MAX_SCORE: 5,
+  INITIAL_BALL_SPEED: 5,
 };
 
 export interface PlayerState {
@@ -50,6 +52,7 @@ export interface RoomState {
   phase: GamePhase;
   lastScorerId: string | null;
   gameLoopIntervalId: NodeJS.Timeout | null;
+  servingPlayerId: string | null;
 }
 
 export interface RoomJoinedPayload {
@@ -70,4 +73,19 @@ export interface OpponentJoinedPayload {
     players: { [socketId: string]: PlayerState };
     phase: GamePhase;
   };
+}
+
+export interface PlayerReadyStateUpdatePayload {
+  playerId: string;
+  isReady: boolean;
+  readyButtonColors?: {
+    player1: string;
+    player2: string;
+  };
+}
+
+export interface GameStartedPayload {
+  initialBallState: BallState;
+  initialPlayersState: { [socketId: string]: PlayerState };
+  servingPlayerId: string;
 }
