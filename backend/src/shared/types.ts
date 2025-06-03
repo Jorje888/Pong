@@ -52,3 +52,23 @@ export interface RoomState {
   lastScorerId: string | null;
   gameLoopIntervalId: NodeJS.Timeout | null;
 }
+
+export interface RoomJoinedPayload {
+  roomId: string;
+  playerSide: "left" | "right";
+  opponentName: string | null;
+  initialGameState: {
+    players: { [socketId: string]: PlayerState };
+    ball: BallState;
+    phase: GamePhase;
+  };
+}
+
+export interface OpponentJoinedPayload {
+  opponentName: string;
+  opponentId: string;
+  updatedGameState: {
+    players: { [socketId: string]: PlayerState };
+    phase: GamePhase;
+  };
+}
