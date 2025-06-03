@@ -19,26 +19,54 @@ io.on("connection", (socket) => {
     console.log("Client disconnected", socket.id);
   });
 
-  socket.on("joinRoom", (roomId: string) => {
+  socket.on("joinRoom", (roomId: string, username: string) => {
     const room = rooms.get(roomId);
     if (room) {
-      socket.join(roomId);
-      room.players[socket.id] = {
-        id: socket.id,
-        name: "",
-        isReady: false,
-        paddleY: 0,
-        score: 0,
-        side: "left",
-        socket,
-      };
+      // Room exists
+      if (Object.keys(room.players).length === 1) {
+        //Only one person is in the room
+        room.players[socket.id] = {
+          id: socket.id,
+          name: username,
+          isReady: false,
+          paddleY: 0,
+          score: 0,
+          side: "right",
+          socket: socket,
+        };
+        socket.join(roomId);
+        room.phase = GamePhase.READY_CHECK;
+        const [firstPlayer] = Object.values(room.players);
+
+        socket.emit("roomJoined", {
+          roomId: roomId,
+          playerSide: "right",
+          opponentName: firstPlayer.name,
+          initialGameState: {
+            players: room.players,
+            ball: room.ball,
+            phase: room.phase,
+          },
+        });
+        firstPlayer.socket.emit("opponentJoined", {
+          opponentName: username,
+          opponentId: socket.id,
+          updatedGameState: {
+            players: room.players,
+            phase: room.phase,
+          },
+        });
+      } else {
+        // Room is already full
+        socket.emit("roomFull", {});
+      }
     } else {
       const newRoom: RoomState = {
         id: roomId,
         players: {
           [socket.id]: {
             id: socket.id,
-            name: "",
+            name: username,
             isReady: false,
             paddleY: 0,
             score: 0,
@@ -53,6 +81,16 @@ io.on("connection", (socket) => {
       };
       rooms.set(roomId, newRoom);
       socket.join(roomId);
+      socket.emit("roomJoined", {
+        roomId,
+        playerSide: "left",
+        opponentName: null,
+        initialGameState: {
+          players: newRoom.players,
+          ball: newRoom.ball,
+          phase: newRoom.phase,
+        },
+      });
     }
   });
 });
