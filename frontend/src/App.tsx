@@ -3,6 +3,7 @@ import logo from "./logo.svg";
 import "./App.css";
 import WelcomeScreen from "./components/WelcomeScreen";
 import socket from "./socket";
+import GamePage from "./components/GamePage";
 
 function App() {
   const [currentPage, setCurrentPage] = React.useState<
@@ -55,12 +56,13 @@ function App() {
             setRoomFullError={setRoomFullError}
           />
         )}
-        {/* {currentPage === "game" && (
-          <div>
-            Game Page - Room: {currentRoomId} - Side: {playerSide} - Opponent:{" "}
-            {opponentName || "Waiting..."}
-          </div>
-        )} */}
+        {currentPage === "game" && (
+          <GamePage
+            roomId={currentRoomId!}
+            playerSide={playerSide!}
+            opponentName={opponentName}
+          />
+        )}
       </header>
     </div>
   );
