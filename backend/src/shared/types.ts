@@ -25,7 +25,6 @@ export interface PlayerState {
   paddleY: number;
   score: number;
   side: "left" | "right";
-  socket: any;
 }
 
 export interface BallState {

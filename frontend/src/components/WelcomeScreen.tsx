@@ -1,9 +1,33 @@
 import React, { useState } from "react";
 
-const WelcomeScreen: React.FC = () => {
+interface WelcomeScreenProps {
+  handleJoinRoom: (roomNumber: string, playerName: string) => void;
+  roomFullError: string | null;
+  setRoomFullError: React.Dispatch<React.SetStateAction<string | null>>;
+}
+
+const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
+  handleJoinRoom,
+  roomFullError,
+  setRoomFullError,
+}) => {
   const [roomNumber, setRoomNumber] = useState<string>("");
   const [playerName, setPlayerName] = useState<string>("");
-  const [roomFullError, setRoomFullError] = useState<string | null>(null);
+
+  const handleRoomNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRoomNumber(e.target.value);
+    if (roomFullError) setRoomFullError(null);
+  };
+
+  const handlePlayerNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPlayerName(e.target.value);
+    if (roomFullError) setRoomFullError(null);
+  };
+
+  const handleJoinButtonClick = () => {
+    handleJoinRoom(roomNumber, playerName);
+    if (roomFullError) setRoomFullError(null);
+  };
 
   return (
     <div style={{ padding: "20px", textAlign: "center" }}>
@@ -12,20 +36,18 @@ const WelcomeScreen: React.FC = () => {
         type="text"
         placeholder="Room Number"
         value={roomNumber}
-        onChange={(e) => setRoomNumber(e.target.value)}
+        onChange={handleRoomNumberChange}
         style={{ display: "block", margin: "10px auto" }}
       />
       <input
         type="text"
         placeholder="Your Name"
         value={playerName}
-        onChange={(e) => setPlayerName(e.target.value)}
+        onChange={handlePlayerNameChange}
         style={{ display: "block", margin: "10px auto" }}
       />
       <button
-        onClick={() => {
-          // Logic for joining room will go here
-        }}
+        onClick={handleJoinButtonClick}
         style={{ display: "block", margin: "10px auto" }}
       >
         Join Room
