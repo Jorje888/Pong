@@ -1,110 +1,127 @@
 import React, { useEffect, useRef } from "react";
 import Phaser from "phaser";
-import { phaserConfig } from "../phaser/game"; // Assumes phaserConfig properly registers MainGameScene
+// Assuming phaserConfig.ts properly registers MainGameScene
+// and gameConstants are available in the same file or imported
+import { phaserConfig } from "../phaser/game"; // Changed import path here
+import { PlayerState, GamePhase } from "../shared/types";
+import { MainGameScene } from "../phaser/scenes/MainGameScene";
+
+// Dummy gameConstants for demonstration if not imported
+const gameConstants = {
+  GAME_WIDTH: 800,
+  GAME_HEIGHT: 600,
+};
 
 type GamePageProps = {
   roomId: string;
   playerSide: "left" | "right";
   opponentName: string | null;
+  playerStates: { [socketId: string]: PlayerState };
+  gamePhase: GamePhase;
+  ownSocketId: string | null;
 };
 
 const GamePage: React.FC<GamePageProps> = ({
   roomId,
   playerSide,
   opponentName,
+  playerStates,
+  gamePhase,
+  ownSocketId,
 }) => {
-  // Use a ref to store the Phaser game instance so it persists across renders
   const gameRef = useRef<Phaser.Game | null>(null);
 
-  // Effect for initializing and destroying the Phaser game
-  // This should only run when the room or player side changes (indicating a new game session)
   useEffect(() => {
-    // Only create a new game if one doesn't exist for this room/playerSide
+    // Prevent re-creating the game if it already exists for the current room
     if (
       gameRef.current &&
       gameRef.current.isBooted &&
       gameRef.current.registry.get("roomId") === roomId
     ) {
-      // Game is already running for this room, do nothing
-      return;
+      return; // Game is already running for this room, do nothing
     }
 
+    // Initialize Phaser game
     const game = new Phaser.Game({
       ...phaserConfig,
-      // If phaserConfig does not explicitly set the `parent` property, you can set it here:
-      parent: "phaser-game-container",
-      // You don't need a custom 'create' function here if MainGameScene is already in phaserConfig.scene array.
-      // Phaser will automatically start the first scene in the 'scene' array if no specific scene is passed.
-      // However, if you explicitly want to start 'MainGameScene' with data, you can do it like this:
-      scene: {
-        create: function () {
-          // This ensures initial data is passed when the game starts
-          this.scene.start("MainGameScene", {
-            roomId,
-            playerSide,
-            opponentName,
-          });
-        },
-      },
+      parent: "phaser-game-container", // Ensure this matches the div ID below
+      // No need for an anonymous scene here, MainGameScene will be started directly
+      // and receive data via its init method.
     });
 
     gameRef.current = game; // Store the game instance in the ref
 
-    // It's good practice to set some initial values in the game's registry here too,
-    // so the scene can read them and also be updated later.
-    // Ensure the game is ready before setting registry, or listen to 'ready' event.
+    // Listen for the game to be ready before setting initial registry values
     game.events.on("ready", () => {
       if (game.registry) {
+        // Set initial game state in the Phaser Registry
         game.registry.set("roomId", roomId);
         game.registry.set("playerSide", playerSide);
-        game.registry.set("opponentName", opponentName); // Initial value
+        game.registry.set("opponentName", opponentName);
+        game.registry.set("playerStates", playerStates);
+        game.registry.set("gamePhase", gamePhase);
+        game.registry.set("ownSocketId", ownSocketId);
+
+        // Explicitly start the MainGameScene after setting initial data.
+        // The scene's init method will pick up this data.
+        game.scene.start("MainGameScene");
       }
     });
 
     // Cleanup function: destroy the game when the component unmounts
     return () => {
       if (gameRef.current) {
-        gameRef.current.destroy(true);
+        gameRef.current.destroy(true); // true means also remove the canvas
         gameRef.current = null;
       }
     };
-  }, [roomId, playerSide]); // Dependencies: only roomId and playerSide, NOT opponentName
+  }, [roomId, playerSide]); // Dependencies: only roomId and playerSide for game creation
 
-  // Effect for updating opponentName in the *running* Phaser game
-  // This runs whenever opponentName changes, and updates the *existing* game instance
+  // Effect for updating game state in the *running* Phaser game via Registry
+  // This useEffect will re-run whenever any of these props change,
+  // and the MainGameScene will react to the registry updates.
   useEffect(() => {
-    if (gameRef.current && gameRef.current.isBooted) {
-      // Update the opponentName in Phaser's global registry
-      // MainGameScene should be listening for changes to this registry key.
+    if (
+      gameRef.current &&
+      gameRef.current.isBooted &&
+      gameRef.current.registry
+    ) {
       gameRef.current.registry.set("opponentName", opponentName);
+      gameRef.current.registry.set("playerStates", playerStates);
+      gameRef.current.registry.set("gamePhase", gamePhase);
+      gameRef.current.registry.set("ownSocketId", ownSocketId);
     }
-  }, [opponentName]); // Dependency: only opponentName
+  }, [opponentName, playerStates, gamePhase, ownSocketId]);
 
   return (
-    <div>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
       {/* This div is where Phaser will render its canvas */}
       <div
         id="phaser-game-container"
+        className="w-full max-w-screen-lg aspect-video bg-gray-800 rounded-lg shadow-xl overflow-hidden"
         style={{
-          position: "relative",
-          width: phaserConfig.width,
-          height: phaserConfig.height,
+          width: phaserConfig.width, // Use phaserConfig width
+          height: phaserConfig.height, // Use phaserConfig height
+          position: "relative", // Needed for absolute positioning of overlay
         }}
       />
 
       {/* React UI elements rendered outside/overlaying the Phaser canvas */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          color: "#fff",
-          padding: "10px",
-          background: "rgba(0,0,0,0.5)",
-        }}
-      >
-        <p>Room: {roomId}</p>
-        <p>Opponent: {opponentName || "Waiting..."}</p>
+      <div className="absolute top-0 left-0 text-white p-4 bg-gray-800 bg-opacity-75 rounded-br-lg">
+        <p className="text-lg">
+          Room: <span className="font-bold">{roomId}</span>
+        </p>
+        <p className="text-lg">
+          Opponent:{" "}
+          <span className="font-bold">{opponentName || "Waiting..."}</span>
+        </p>
+        <p className="text-lg">
+          Phase: <span className="font-bold">{gamePhase}</span>
+        </p>
+        <p className="text-lg">
+          My Socket ID:{" "}
+          <span className="font-bold">{ownSocketId || "N/A"}</span>
+        </p>
       </div>
     </div>
   );
