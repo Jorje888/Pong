@@ -112,9 +112,6 @@ function startGameLoop(roomId: string) {
         ballBottom > paddleTop &&
         ballTop < paddleBottom
       ) {
-        // **Collision Response:**
-        // **Determine which paddle was hit and ensure ball is moving towards it:**
-        // If `player.side === 'left'` (left paddle) and `ball.vx < 0` (ball moving left):
         if (player.side === "left" && ball.vx < 0) {
           ball.x = paddleRight + gameConstants.BALL_RADIUS;
           ball.vx *= -1; // Reverse horizontal direction
@@ -143,6 +140,39 @@ function startGameLoop(roomId: string) {
         }
       }
     });
+
+    let scorer: "left" | "right" | null = null;
+
+    if (ball.x - gameConstants.BALL_RADIUS < 0) {
+      // Ball passed left boundary
+      scorer = "right"; // Right player scores
+    } else if (ball.x + gameConstants.BALL_RADIUS > gameConstants.GAME_WIDTH) {
+      // Ball passed right boundary
+      scorer = "left"; // Left player scores
+    }
+
+    if (scorer) {
+      const scoringPlayerId = Object.keys(currentRoomState.players).find(
+        (playerId) => currentRoomState.players[playerId].side === scorer
+      );
+
+      if (scoringPlayerId) {
+        currentRoomState.players[scoringPlayerId].score += 1;
+      }
+
+      // Reset ball to center and increase speed
+      ball.x = gameConstants.GAME_WIDTH / 2;
+      ball.y = gameConstants.GAME_HEIGHT / 2;
+      ball.speed += gameConstants.BALL_SPEED_INCREMENT_PER_HIT;
+      let angle = (Math.random() * Math.PI) / 2 - Math.PI / 4; // -45 to +45 degrees
+      ball.vy = ball.speed * Math.sin(angle);
+      ball.vx = ball.speed * Math.cos(angle);
+
+      // Ensure ball moves towards the player who was scored against
+      if (scorer === "right") {
+        ball.vx *= -1; // Ball moves left if right player scored
+      }
+    }
 
     io.to(roomId).emit("gameStateUpdate", {
       ball: currentRoomState.ball,

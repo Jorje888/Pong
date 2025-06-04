@@ -11,6 +11,7 @@ export interface GameConstants {
   SERVER_TICK_RATE_MS: number;
   PADDLE_SPEED: number;
   BALL_SPEED_INCREMENT_PER_HIT: number;
+  GAME_PAUSE_AFTER_SCORE_MS: number;
 }
 
 export const gameConstants: GameConstants = {
@@ -24,6 +25,7 @@ export const gameConstants: GameConstants = {
   SERVER_TICK_RATE_MS: 16.67,
   PADDLE_SPEED: 300,
   BALL_SPEED_INCREMENT_PER_HIT: 10,
+  GAME_PAUSE_AFTER_SCORE_MS: 1500,
 };
 
 export interface PlayerState {
