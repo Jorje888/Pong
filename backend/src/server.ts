@@ -38,6 +38,22 @@ function startGameLoop(roomId: string) {
       return;
     }
 
+    const deltaTimeSeconds = gameConstants.SERVER_TICK_RATE_MS / 1000;
+    currentRoomState.ball.x += currentRoomState.ball.vx * deltaTimeSeconds;
+    currentRoomState.ball.y += currentRoomState.ball.vy * deltaTimeSeconds;
+
+    if (currentRoomState.ball.y - gameConstants.BALL_RADIUS < 0) {
+      currentRoomState.ball.y = gameConstants.BALL_RADIUS;
+      currentRoomState.ball.vy *= -1;
+    } else if (
+      currentRoomState.ball.y + gameConstants.BALL_RADIUS >
+      gameConstants.GAME_HEIGHT
+    ) {
+      currentRoomState.ball.y =
+        gameConstants.GAME_HEIGHT - gameConstants.BALL_RADIUS;
+      currentRoomState.ball.vy *= -1;
+    }
+
     Object.values(currentRoomState.players).forEach((player) => {
       const PADDLE_SPEED_PER_TICK =
         gameConstants.PADDLE_SPEED / (1000 / gameConstants.SERVER_TICK_RATE_MS);
