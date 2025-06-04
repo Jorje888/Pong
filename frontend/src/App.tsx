@@ -118,12 +118,43 @@ function App() {
       }
     );
 
+    socket.on(
+      "gameStateUpdate",
+      (data: {
+        ball: BallState;
+        paddles: { id: string; y: number; side: "left" | "right" }[];
+        phase: GamePhase;
+        scores: { player1: number; player2: number };
+      }) => {
+        console.log("gameStateUpdate event:", data);
+        setBallState(data.ball);
+        setPlayerStates((prevPlayerStates) => {
+          if (!prevPlayerStates) return null;
+          const newPlayerStates = { ...prevPlayerStates };
+          data.paddles.forEach((paddleUpdate) => {
+            if (newPlayerStates[paddleUpdate.id]) {
+              newPlayerStates[paddleUpdate.id] = {
+                ...newPlayerStates[paddleUpdate.id],
+                paddleY: paddleUpdate.y,
+              };
+            }
+          });
+          Object.values(newPlayerStates).forEach((player) => {
+            if (player.side === "left") player.score = data.scores.player1;
+            if (player.side === "right") player.score = data.scores.player2;
+          });
+          return newPlayerStates;
+        });
+        setGamePhase(data.phase);
+      }
+    );
     return () => {
       socket.off("roomJoined");
       socket.off("roomFull");
       socket.off("opponentJoined");
       socket.off("playerReadyStateUpdate");
       socket.off("gameStarted");
+      socket.off("gameStateUpdate");
       socket.disconnect();
     };
   }, []);
@@ -146,6 +177,7 @@ function App() {
             playerStates={playerStates!}
             gamePhase={gamePhase!}
             ownSocketId={ownSocketId}
+            ballState={ballState!}
           />
         )}
       </header>

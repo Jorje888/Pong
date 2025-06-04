@@ -3,10 +3,11 @@ import Phaser from "phaser";
 // Assuming phaserConfig.ts properly registers MainGameScene
 // and gameConstants are available in the same file or imported
 import { phaserConfig } from "../phaser/game"; // Changed import path here
-import { PlayerState, GamePhase } from "../shared/types";
+import { PlayerState, GamePhase, BallState } from "../shared/types"; // Import BallState
 import { MainGameScene } from "../phaser/scenes/MainGameScene";
 
 // Dummy gameConstants for demonstration if not imported
+// Make sure these are consistent with your actual gameConstants in shared/types
 const gameConstants = {
   GAME_WIDTH: 800,
   GAME_HEIGHT: 600,
@@ -17,6 +18,7 @@ type GamePageProps = {
   playerSide: "left" | "right";
   opponentName: string | null;
   playerStates: { [socketId: string]: PlayerState };
+  ballState: BallState; // ADDED: ballState prop
   gamePhase: GamePhase;
   ownSocketId: string | null;
 };
@@ -26,6 +28,7 @@ const GamePage: React.FC<GamePageProps> = ({
   playerSide,
   opponentName,
   playerStates,
+  ballState, // Destructure ballState from props
   gamePhase,
   ownSocketId,
 }) => {
@@ -59,6 +62,7 @@ const GamePage: React.FC<GamePageProps> = ({
         game.registry.set("playerSide", playerSide);
         game.registry.set("opponentName", opponentName);
         game.registry.set("playerStates", playerStates);
+        game.registry.set("ballState", ballState); // ADDED: Set initial ballState
         game.registry.set("gamePhase", gamePhase);
         game.registry.set("ownSocketId", ownSocketId);
 
@@ -88,10 +92,11 @@ const GamePage: React.FC<GamePageProps> = ({
     ) {
       gameRef.current.registry.set("opponentName", opponentName);
       gameRef.current.registry.set("playerStates", playerStates);
+      gameRef.current.registry.set("ballState", ballState); // ADDED: Update ballState
       gameRef.current.registry.set("gamePhase", gamePhase);
       gameRef.current.registry.set("ownSocketId", ownSocketId);
     }
-  }, [opponentName, playerStates, gamePhase, ownSocketId]);
+  }, [opponentName, playerStates, ballState, gamePhase, ownSocketId]); // ADDED: ballState to dependencies
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">

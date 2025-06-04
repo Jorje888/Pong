@@ -19,6 +19,53 @@ httpServer.listen(3001, () => {
   console.log("Server is listening on port 3001");
 });
 
+function startGameLoop(roomId: string) {
+  console.log("Starting game loop for room", roomId);
+  const room = rooms.get(roomId);
+  if (!room) {
+    return;
+  }
+  if (room.gameLoopIntervalId) {
+    clearInterval(room.gameLoopIntervalId);
+  }
+  console.log("Starting interval");
+  room.gameLoopIntervalId = setInterval(() => {
+    const currentRoomState = rooms.get(roomId);
+    if (!currentRoomState || currentRoomState.phase !== GamePhase.ACTIVE_GAME) {
+      clearInterval(room.gameLoopIntervalId!);
+      room.gameLoopIntervalId = null;
+      return;
+    }
+
+    io.to(roomId).emit("gameStateUpdate", {
+      ball: currentRoomState.ball,
+      paddles: Object.values(currentRoomState.players).map((p) => ({
+        id: p.id,
+        y: p.paddleY,
+        side: p.side,
+      })),
+      scores: {
+        player1:
+          Object.values(currentRoomState.players).find((p) => p.side === "left")
+            ?.score || 0,
+        player2:
+          Object.values(currentRoomState.players).find(
+            (p) => p.side === "right"
+          )?.score || 0,
+      },
+      phase: currentRoomState.phase,
+    });
+  }, gameConstants.SERVER_TICK_RATE_MS);
+}
+
+function stopGameLoop(roomId: string) {
+  const room = rooms.get(roomId);
+  if (room && room.gameLoopIntervalId) {
+    clearInterval(room.gameLoopIntervalId);
+    room.gameLoopIntervalId = null;
+  }
+}
+
 io.on("connection", (socket) => {
   console.log("Client connected", socket.id);
 
@@ -153,6 +200,7 @@ io.on("connection", (socket) => {
           servingPlayerId: room.servingPlayerId,
           phase: room.phase,
         });
+        startGameLoop(room.id);
       }
     }
   });

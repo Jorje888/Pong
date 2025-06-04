@@ -8,6 +8,8 @@ export interface GameConstants {
   BALL_RADIUS: number;
   MAX_SCORE: number;
   INITIAL_BALL_SPEED: number;
+  SERVER_TICK_RATE_MS: number;
+  PADDLE_SPEED: number;
 }
 
 export const gameConstants: GameConstants = {
@@ -17,7 +19,9 @@ export const gameConstants: GameConstants = {
   PADDLE_WIDTH: 20,
   BALL_RADIUS: 10,
   MAX_SCORE: 5,
-  INITIAL_BALL_SPEED: 5,
+  INITIAL_BALL_SPEED: 250,
+  SERVER_TICK_RATE_MS: 16.67,
+  PADDLE_SPEED: 300,
 };
 
 export interface PlayerState {
