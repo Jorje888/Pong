@@ -10,6 +10,7 @@ export interface GameConstants {
   INITIAL_BALL_SPEED: number;
   SERVER_TICK_RATE_MS: number;
   PADDLE_SPEED: number;
+  BALL_SPEED_INCREMENT_PER_HIT: number;
 }
 
 export const gameConstants: GameConstants = {
@@ -22,6 +23,7 @@ export const gameConstants: GameConstants = {
   INITIAL_BALL_SPEED: 250,
   SERVER_TICK_RATE_MS: 16.67,
   PADDLE_SPEED: 300,
+  BALL_SPEED_INCREMENT_PER_HIT: 10,
 };
 
 export interface PlayerState {

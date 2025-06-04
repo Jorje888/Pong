@@ -63,13 +63,84 @@ function startGameLoop(roomId: string) {
         player.paddleY += PADDLE_SPEED_PER_TICK;
       }
       player.paddleY = Math.max(0, player.paddleY);
-      const oldPaddleY = player.paddleY;
       player.paddleY = Math.min(
         gameConstants.GAME_HEIGHT - gameConstants.PADDLE_HEIGHT,
         player.paddleY
       );
-      if (oldPaddleY !== player.paddleY) {
-        console.log("Paddle y changed to", player.paddleY);
+    });
+
+    Object.keys(currentRoomState.players).forEach((playerId) => {
+      const player = currentRoomState.players[playerId];
+      const paddleX =
+        player.side === "left"
+          ? gameConstants.PADDLE_WIDTH
+          : gameConstants.GAME_WIDTH - gameConstants.PADDLE_WIDTH;
+      const paddleLeft =
+        player.side === "left"
+          ? 0
+          : gameConstants.GAME_WIDTH - gameConstants.PADDLE_WIDTH;
+      const paddleRight =
+        player.side === "left"
+          ? gameConstants.PADDLE_WIDTH
+          : gameConstants.GAME_WIDTH;
+      const paddleTop = player.paddleY;
+      const paddleBottom = player.paddleY + gameConstants.PADDLE_HEIGHT;
+    });
+
+    const ball = currentRoomState.ball;
+    const ballTop = ball.y - gameConstants.BALL_RADIUS;
+    const ballBottom = ball.y + gameConstants.BALL_RADIUS;
+    const ballLeft = ball.x - gameConstants.BALL_RADIUS;
+    const ballRight = ball.x + gameConstants.BALL_RADIUS;
+
+    Object.keys(currentRoomState.players).forEach((playerId) => {
+      const player = currentRoomState.players[playerId];
+      const paddleLeft =
+        player.side === "left"
+          ? 0
+          : gameConstants.GAME_WIDTH - gameConstants.PADDLE_WIDTH;
+      const paddleRight =
+        player.side === "left"
+          ? gameConstants.PADDLE_WIDTH
+          : gameConstants.GAME_WIDTH;
+      const paddleTop = player.paddleY;
+      const paddleBottom = player.paddleY + gameConstants.PADDLE_HEIGHT;
+
+      if (
+        ballRight > paddleLeft &&
+        ballLeft < paddleRight &&
+        ballBottom > paddleTop &&
+        ballTop < paddleBottom
+      ) {
+        // **Collision Response:**
+        // **Determine which paddle was hit and ensure ball is moving towards it:**
+        // If `player.side === 'left'` (left paddle) and `ball.vx < 0` (ball moving left):
+        if (player.side === "left" && ball.vx < 0) {
+          ball.x = paddleRight + gameConstants.BALL_RADIUS;
+          ball.vx *= -1; // Reverse horizontal direction
+          // **Calculate reflection angle based on hit point:**
+          let intersectY =
+            ball.y - (player.paddleY + gameConstants.PADDLE_HEIGHT / 2);
+          let normalizedIntersectY =
+            intersectY / (gameConstants.PADDLE_HEIGHT / 2);
+          let bounceAngle = normalizedIntersectY * (Math.PI / 3);
+          ball.vy = ball.speed * Math.sin(bounceAngle);
+          ball.vx = ball.speed * Math.cos(bounceAngle); // vx should remain positive (moving right)
+          ball.speed += gameConstants.BALL_SPEED_INCREMENT_PER_HIT;
+        }
+        // Else if `player.side === 'right'` (right paddle) and `ball.vx > 0` (ball moving right):
+        else if (player.side === "right" && ball.vx > 0) {
+          ball.x = paddleLeft - gameConstants.BALL_RADIUS;
+          ball.vx *= -1; // Reverse horizontal direction (now moving left)
+          let intersectY =
+            ball.y - (player.paddleY + gameConstants.PADDLE_HEIGHT / 2);
+          let normalizedIntersectY =
+            intersectY / (gameConstants.PADDLE_HEIGHT / 2);
+          let bounceAngle = normalizedIntersectY * (Math.PI / 3);
+          ball.vy = ball.speed * Math.sin(bounceAngle);
+          ball.vx = -ball.speed * Math.cos(bounceAngle); // vx must be negative (moving left)
+          ball.speed += gameConstants.BALL_SPEED_INCREMENT_PER_HIT;
+        }
       }
     });
 

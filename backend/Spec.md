@@ -807,7 +807,7 @@ Tasks:
           - **Important**: Ensure that after calculating new `vx` and `vy` from `bounceAngle` and `ball.speed`, the signs of `vx` are correct for the direction away from the paddle. The `Math.cos(bounceAngle)` will always be positive if `bounceAngle` is within -PI/2 to PI/2.
           - A simpler reflection might just change `vy` based on `normalizedIntersectY` and keep `vx` magnitude but reverse sign, then re-normalize `vx, vy` to new `ball.speed`. The provided method changes overall direction more dynamically.
 
-3.  The `gameStateUpdate` will broadcast the ball's new velocity and position.
+3.  The `gameStatFeUpdate` will broadcast the ball's new velocity and position.
 
 Testing:
 
