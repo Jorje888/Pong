@@ -4,6 +4,7 @@ import {
   GamePhase,
   PlayerState,
   BallState,
+  PlayerInputPayload,
 } from "../../shared/types";
 import socket from "../../socket";
 
@@ -17,13 +18,16 @@ export class MainGameScene extends Phaser.Scene {
   private roomId: string | null = null;
   private playerSide: "left" | "right" | null = null;
   private opponentName: string | null = null;
-
-  // NEW: Game Objects for rendering
   private ball: Phaser.GameObjects.Arc | null = null;
   private leftPaddle: Phaser.GameObjects.Rectangle | null = null;
   private rightPaddle: Phaser.GameObjects.Rectangle | null = null;
   private scoreText: Phaser.GameObjects.Text | null = null;
-  private ballState: BallState | null = null; // To hold the ball state from registry
+  private ballState: BallState | null = null;
+  // Keyboard keys - these are declared as properties
+  private keyW: Phaser.Input.Keyboard.Key | null = null;
+  private keyS: Phaser.Input.Keyboard.Key | null = null;
+  private keyUp: Phaser.Input.Keyboard.Key | null = null;
+  private keyDown: Phaser.Input.Keyboard.Key | null = null;
 
   constructor() {
     super({ key: "MainGameScene" });
@@ -48,6 +52,7 @@ export class MainGameScene extends Phaser.Scene {
       this.updatePlayerStates,
       this
     );
+
     this.registry.events.on("changedata-gamePhase", this.updateGamePhase, this);
     this.registry.events.on(
       "changedata-ownSocketId",
@@ -56,7 +61,7 @@ export class MainGameScene extends Phaser.Scene {
     );
     this.registry.events.on(
       "changedata-ballState",
-      this.handleGameUpdates,
+      this.updateBallState, // IMPORTANT: Use updateBallState here, which then calls handleGameUpdates
       this
     );
   }
@@ -152,18 +157,61 @@ export class MainGameScene extends Phaser.Scene {
     this.handleGameUpdates();
     // Initial draw of the ready button based on initial state
     this.drawReadyButton();
+
+    this.keyW =
+      this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.W) || null;
+    this.keyS =
+      this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.S) || null;
+    this.keyUp =
+      this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.UP) || null;
+    this.keyDown =
+      this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN) || null;
+
+    const handleKeyDown = (direction: "up" | "down") => {
+      if (this.gamePhase === GamePhase.ACTIVE_GAME) {
+        socket.emit("playerInput", { direction });
+      }
+    };
+    const handleKeyUp = (
+      pressedDirection: "up" | "down",
+      otherDirectionKey: Phaser.Input.Keyboard.Key | null
+    ) => {
+      // Only send 'stop' if the other movement key for that player isn't also down
+      if (
+        this.gamePhase === GamePhase.ACTIVE_GAME &&
+        (!otherDirectionKey || !otherDirectionKey.isDown)
+      ) {
+        socket.emit("playerInput", { direction: "stop" });
+      }
+    };
+
+    // Attach listeners to the initialized keys
+    // It's important to check if the keys exist (are not null)
+    // before attaching listeners.
+    if (this.playerSide === "left") {
+      this.keyW?.on("down", () => handleKeyDown("up"));
+      this.keyS?.on("down", () => handleKeyDown("down"));
+      this.keyW?.on("up", () => handleKeyUp("up", this.keyS));
+      this.keyS?.on("up", () => handleKeyUp("down", this.keyW));
+    } else if (this.playerSide === "right") {
+      this.keyUp?.on("down", () => handleKeyDown("up"));
+      this.keyDown?.on("down", () => handleKeyDown("down"));
+      this.keyUp?.on("up", () => handleKeyUp("up", this.keyDown));
+      this.keyDown?.on("up", () => handleKeyUp("down", this.keyUp));
+    }
   }
 
   // Update methods for registry listeners
   private updateRoomId(_key: string | null, value: string) {
     this.roomId = value;
-    // The opponentNameText will display the room ID, which is handled in updateOpponentDisplay
-    this.updateOpponentDisplay(null, this.opponentName); // Re-evaluate opponent display for room ID
+    this.updateOpponentDisplay(null, this.opponentName);
   }
 
   private updatePlayerSide(_key: string | null, value: "left" | "right") {
     this.playerSide = value;
-    // No direct visual update needed here, as paddles are handled by playerStates
+    // IMPORTANT: If playerSide changes AFTER create, you need to re-attach key listeners.
+    // However, `playerSide` is likely set once at the beginning, so this is okay.
+    // If it could change dynamically, you'd need to re-run the key setup logic.
   }
 
   private updateOpponentDisplay(_key: string | null, value: string | null) {
@@ -174,10 +222,6 @@ export class MainGameScene extends Phaser.Scene {
           this.roomId || "..."
         }`
       );
-      // Opponent name text visibility logic is now integrated into handleGameUpdates
-      // but we call it here to update the text content immediately.
-      // Visibility is now handled by handleGameUpdates based on gamePhase.
-      // We'll remove this redundant visibility logic from here.
     }
   }
 
@@ -186,15 +230,15 @@ export class MainGameScene extends Phaser.Scene {
     value: { [socketId: string]: PlayerState }
   ) {
     this.playerStates = value;
-    this.drawReadyButton(); // Redraw button if player states change (e.g., isReady)
-    this.handleGameUpdates(); // Trigger main game display update
+    this.drawReadyButton();
+    this.handleGameUpdates();
   }
 
   private updateGamePhase(_key: string | null, value: GamePhase) {
     this.gamePhase = value;
-    this.drawReadyButton(); // Redraw button if game phase changes
-    this.updateOpponentDisplay(null, this.opponentName); // Re-evaluate opponent text content and visibility
-    this.handleGameUpdates(); // Trigger main game display update
+    this.drawReadyButton();
+    this.updateOpponentDisplay(null, this.opponentName);
+    this.handleGameUpdates();
   }
 
   private updateBallState(_key: string | null, value: BallState | null) {
@@ -204,7 +248,7 @@ export class MainGameScene extends Phaser.Scene {
 
   private updateOwnSocketId(_key: string | null, value: string) {
     this.ownSocketId = value;
-    this.drawReadyButton(); // Redraw button if own socket ID becomes available
+    this.drawReadyButton();
   }
 
   // NEW: Central method to update game objects' positions and visibility
@@ -240,13 +284,11 @@ export class MainGameScene extends Phaser.Scene {
       // Update paddle positions
       Object.values(this.playerStates).forEach((player: PlayerState) => {
         if (player.side === "left" && this.leftPaddle) {
-          // X position is fixed. Y position is player.paddleY + half paddle height
           this.leftPaddle.setPosition(
             gameConstants.PADDLE_WIDTH / 2,
             player.paddleY + gameConstants.PADDLE_HEIGHT / 2
           );
         } else if (player.side === "right" && this.rightPaddle) {
-          // X position is fixed. Y position is player.paddleY + half paddle height
           this.rightPaddle.setPosition(
             gameConstants.GAME_WIDTH - gameConstants.PADDLE_WIDTH / 2,
             player.paddleY + gameConstants.PADDLE_HEIGHT / 2
@@ -275,24 +317,19 @@ export class MainGameScene extends Phaser.Scene {
       } else {
         this.opponentNameText.setVisible(false); // Hide in other non-active phases like READY_CHECK or PAUSED
       }
-
-      // Optionally, reset paddle positions to a default if they should appear during non-active phases
-      // e.g., if you want them visible during READY_CHECK at a default Y.
-      // For now, they'll remain hidden.
     }
   }
 
   private drawReadyButton() {
     if (this.readyButton) {
       this.readyButton.destroy();
-      this.readyButton = null; // Clear reference after destroying
+      this.readyButton = null;
     }
 
-    // Only draw the button if in relevant phases
     if (
       this.gamePhase === GamePhase.READY_CHECK ||
-      this.gamePhase === GamePhase.ACTIVE_GAME || // Show pause button in active game
-      this.gamePhase === GamePhase.PAUSED // Show resume/paused button
+      this.gamePhase === GamePhase.ACTIVE_GAME ||
+      this.gamePhase === GamePhase.PAUSED
     ) {
       if (
         this.ownSocketId &&
@@ -300,17 +337,17 @@ export class MainGameScene extends Phaser.Scene {
         this.playerStates[this.ownSocketId]
       ) {
         const me = this.playerStates[this.ownSocketId];
-        let buttonColor = "#FF0000"; // Default red
+        let buttonColor = "#FF0000";
         let buttonText = "READY";
 
         if (this.gamePhase === GamePhase.READY_CHECK) {
-          buttonColor = me.isReady ? "#FFFF00" : "#FF0000"; // Yellow if ready, red if not
+          buttonColor = me.isReady ? "#FFFF00" : "#FF0000";
           buttonText = me.isReady ? "UNREADY" : "READY";
         } else if (this.gamePhase === GamePhase.ACTIVE_GAME) {
-          buttonColor = "#00FF00"; // Green
+          buttonColor = "#00FF00";
           buttonText = "PAUSE";
         } else if (this.gamePhase === GamePhase.PAUSED) {
-          buttonColor = me.isReady ? "#00FF00" : "#FFFF00"; // Green if ready to resume, yellow if paused
+          buttonColor = me.isReady ? "#00FF00" : "#FFFF00";
           buttonText = me.isReady ? "RESUME" : "PAUSED";
         }
 
@@ -335,11 +372,7 @@ export class MainGameScene extends Phaser.Scene {
     }
   }
 
-  update() {
-    // This method runs every frame. We are now handling updates via registry events,
-    // so continuous updates here are not strictly necessary for game state driven by server.
-    // However, if you add client-side predictions or animations, they would go here.
-  }
+  update() {}
 
   shutdown() {
     // Remove all registry event listeners to prevent memory leaks
@@ -371,9 +404,19 @@ export class MainGameScene extends Phaser.Scene {
     );
     this.registry.events.off(
       "changedata-ballState",
-      this.updateBallState,
+      this.updateBallState, // Listener was handleGameUpdates, changed back to updateBallState
       this
     );
+
+    // Remove keyboard event listeners during shutdown
+    this.keyW?.off("down");
+    this.keyW?.off("up");
+    this.keyS?.off("down");
+    this.keyS?.off("up");
+    this.keyUp?.off("down");
+    this.keyUp?.off("up");
+    this.keyDown?.off("down");
+    this.keyDown?.off("up");
 
     // Destroy any specific game objects if necessary (though Phaser scene destruction usually handles this)
     if (this.ball) this.ball.destroy();

@@ -3,6 +3,7 @@ import { GamePhase } from "./shared/types";
 import { gameConstants } from "./shared/types";
 import { createServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
+import { PlayerInputPayload } from "./shared/types";
 
 const httpServer = createServer();
 
@@ -37,6 +38,25 @@ function startGameLoop(roomId: string) {
       return;
     }
 
+    Object.values(currentRoomState.players).forEach((player) => {
+      const PADDLE_SPEED_PER_TICK =
+        gameConstants.PADDLE_SPEED / (1000 / gameConstants.SERVER_TICK_RATE_MS);
+      if (player.currentInput === "up") {
+        player.paddleY -= PADDLE_SPEED_PER_TICK;
+      } else if (player.currentInput === "down") {
+        player.paddleY += PADDLE_SPEED_PER_TICK;
+      }
+      player.paddleY = Math.max(0, player.paddleY);
+      const oldPaddleY = player.paddleY;
+      player.paddleY = Math.min(
+        gameConstants.GAME_HEIGHT - gameConstants.PADDLE_HEIGHT,
+        player.paddleY
+      );
+      if (oldPaddleY !== player.paddleY) {
+        console.log("Paddle y changed to", player.paddleY);
+      }
+    });
+
     io.to(roomId).emit("gameStateUpdate", {
       ball: currentRoomState.ball,
       paddles: Object.values(currentRoomState.players).map((p) => ({
@@ -57,7 +77,6 @@ function startGameLoop(roomId: string) {
     });
   }, gameConstants.SERVER_TICK_RATE_MS);
 }
-
 function stopGameLoop(roomId: string) {
   const room = rooms.get(roomId);
   if (room && room.gameLoopIntervalId) {
@@ -90,6 +109,7 @@ io.on("connection", (socket) => {
             paddleY: 0,
             score: 0,
             side: "right",
+            currentInput: "stop",
           };
           socket.join(roomId);
           room.phase = GamePhase.READY_CHECK;
@@ -133,6 +153,7 @@ io.on("connection", (socket) => {
               paddleY: 0,
               score: 0,
               side: "left",
+              currentInput: "stop",
             },
           },
           ball: { x: 0, y: 0, vx: 0, vy: 0, speed: 5 },
@@ -203,5 +224,20 @@ io.on("connection", (socket) => {
         startGameLoop(room.id);
       }
     }
+  });
+
+  socket.on("playerInput", (input: PlayerInputPayload) => {
+    console.log("playerInput", input);
+    const socketNumber = Array.from(socket.rooms)[1];
+    const playerState = rooms.get(socketNumber)?.players[socket.id];
+    const room = rooms.get(socketNumber);
+    if (
+      !playerState ||
+      !room ||
+      room.phase !== GamePhase.ACTIVE_GAME ||
+      !["up", "down", "stop"].includes(input.direction)
+    )
+      return;
+    playerState.currentInput = input.direction;
   });
 });

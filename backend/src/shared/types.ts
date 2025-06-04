@@ -31,6 +31,7 @@ export interface PlayerState {
   paddleY: number;
   score: number;
   side: "left" | "right";
+  currentInput: "up" | "down" | "stop";
 }
 
 export interface BallState {
@@ -93,3 +94,33 @@ export interface GameStartedPayload {
   initialPlayersState: { [socketId: string]: PlayerState };
   servingPlayerId: string;
 }
+
+export interface RoomState {
+  id: string;
+  players: { [socketId: string]: PlayerState };
+  ball: BallState;
+  phase: GamePhase;
+  lastScorerId: string | null;
+  gameLoopIntervalId: NodeJS.Timeout | null;
+}
+
+export interface RoomJoinedPayload {
+  roomId: string;
+  playerSide: "left" | "right";
+  opponentName: string | null;
+  initialGameState: {
+    players: { [socketId: string]: PlayerState };
+    ball: BallState;
+    phase: GamePhase;
+  };
+}
+
+export interface OpponentJoinedPayload {
+  opponentName: string;
+  opponentId: string;
+  updatedGameState: {
+    players: { [socketId: string]: PlayerState };
+    phase: GamePhase;
+  };
+}
+export type PlayerInputPayload = { direction: "up" | "down" | "stop" };

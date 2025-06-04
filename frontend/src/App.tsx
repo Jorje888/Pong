@@ -126,7 +126,6 @@ function App() {
         phase: GamePhase;
         scores: { player1: number; player2: number };
       }) => {
-        console.log("gameStateUpdate event:", data);
         setBallState(data.ball);
         setPlayerStates((prevPlayerStates) => {
           if (!prevPlayerStates) return null;

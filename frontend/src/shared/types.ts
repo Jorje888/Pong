@@ -7,6 +7,9 @@ export interface GameConstants {
   PADDLE_WIDTH: number;
   BALL_RADIUS: number;
   MAX_SCORE: number;
+  INITIAL_BALL_SPEED: number;
+  SERVER_TICK_RATE_MS: number;
+  PADDLE_SPEED: number;
 }
 
 export const gameConstants: GameConstants = {
@@ -16,6 +19,9 @@ export const gameConstants: GameConstants = {
   PADDLE_WIDTH: 20,
   BALL_RADIUS: 10,
   MAX_SCORE: 5,
+  INITIAL_BALL_SPEED: 250,
+  SERVER_TICK_RATE_MS: 16.67,
+  PADDLE_SPEED: 300,
 };
 
 export interface PlayerState {
@@ -25,6 +31,7 @@ export interface PlayerState {
   paddleY: number;
   score: number;
   side: "left" | "right";
+  currentInput: "up" | "down" | "stop";
 }
 
 export interface BallState {
@@ -41,6 +48,51 @@ export enum GamePhase {
   ACTIVE_GAME,
   PAUSED,
   GAME_OVER,
+}
+
+export interface RoomState {
+  id: string;
+  players: { [socketId: string]: PlayerState };
+  ball: BallState;
+  phase: GamePhase;
+  lastScorerId: string | null;
+  gameLoopIntervalId: NodeJS.Timeout | null;
+  servingPlayerId: string | null;
+}
+
+export interface RoomJoinedPayload {
+  roomId: string;
+  playerSide: "left" | "right";
+  opponentName: string | null;
+  initialGameState: {
+    players: { [socketId: string]: PlayerState };
+    ball: BallState;
+    phase: GamePhase;
+  };
+}
+
+export interface OpponentJoinedPayload {
+  opponentName: string;
+  opponentId: string;
+  updatedGameState: {
+    players: { [socketId: string]: PlayerState };
+    phase: GamePhase;
+  };
+}
+
+export interface PlayerReadyStateUpdatePayload {
+  playerId: string;
+  isReady: boolean;
+  readyButtonColors?: {
+    player1: string;
+    player2: string;
+  };
+}
+
+export interface GameStartedPayload {
+  initialBallState: BallState;
+  initialPlayersState: { [socketId: string]: PlayerState };
+  servingPlayerId: string;
 }
 
 export interface RoomState {
@@ -71,3 +123,4 @@ export interface OpponentJoinedPayload {
     phase: GamePhase;
   };
 }
+export type PlayerInputPayload = { direction: "up" | "down" | "stop" };
