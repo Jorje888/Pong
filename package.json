@@ -1,0 +1,23 @@
+{
+  "name": "pong",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "concurrently \"cd frontend && npm start\" \"cd backend && npm run dev\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jorje888/Pong.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Jorje888/Pong/issues"
+  },
+  "homepage": "https://github.com/Jorje888/Pong#readme",
+  "description": "",
+  "dependencies": {
+    "concurrently": "^7.3.0"
+  }
+}
