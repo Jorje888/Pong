@@ -144,11 +144,9 @@ function startGameLoop(roomId: string) {
     let scorer: "left" | "right" | null = null;
 
     if (ball.x - gameConstants.BALL_RADIUS < 0) {
-      // Ball passed left boundary
-      scorer = "right"; // Right player scores
+      scorer = "right";
     } else if (ball.x + gameConstants.BALL_RADIUS > gameConstants.GAME_WIDTH) {
-      // Ball passed right boundary
-      scorer = "left"; // Left player scores
+      scorer = "left";
     }
 
     if (scorer) {
@@ -157,41 +155,52 @@ function startGameLoop(roomId: string) {
       );
 
       if (scoringPlayerId) {
-        currentRoomState.players[scoringPlayerId].score += 1;
+        const scoringPlayer = currentRoomState.players[scoringPlayerId];
+        scoringPlayer.score += 1;
+
+        if (scoringPlayer.score >= 5) {
+          currentRoomState.phase = GamePhase.GAME_OVER;
+          io.to(roomId).emit("gameOver", {
+            winnerName: scoringPlayer.name,
+          });
+          rooms.delete(roomId);
+          io.socketsLeave(roomId);
+          return;
+        }
       }
 
-      // Reset ball to center and increase speed
       ball.x = gameConstants.GAME_WIDTH / 2;
       ball.y = gameConstants.GAME_HEIGHT / 2;
       ball.speed += gameConstants.BALL_SPEED_INCREMENT_PER_HIT;
-      let angle = (Math.random() * Math.PI) / 2 - Math.PI / 4; // -45 to +45 degrees
+      let angle = (Math.random() * Math.PI) / 2 - Math.PI / 4;
       ball.vy = ball.speed * Math.sin(angle);
       ball.vx = ball.speed * Math.cos(angle);
 
-      // Ensure ball moves towards the player who was scored against
       if (scorer === "right") {
-        ball.vx *= -1; // Ball moves left if right player scored
+        ball.vx *= -1;
       }
     }
-
-    io.to(roomId).emit("gameStateUpdate", {
-      ball: currentRoomState.ball,
-      paddles: Object.values(currentRoomState.players).map((p) => ({
-        id: p.id,
-        y: p.paddleY,
-        side: p.side,
-      })),
-      scores: {
-        player1:
-          Object.values(currentRoomState.players).find((p) => p.side === "left")
-            ?.score || 0,
-        player2:
-          Object.values(currentRoomState.players).find(
-            (p) => p.side === "right"
-          )?.score || 0,
-      },
-      phase: currentRoomState.phase,
-    });
+    if (currentRoomState.phase === GamePhase.ACTIVE_GAME) {
+      io.to(roomId).emit("gameStateUpdate", {
+        ball: currentRoomState.ball,
+        paddles: Object.values(currentRoomState.players).map((p) => ({
+          id: p.id,
+          y: p.paddleY,
+          side: p.side,
+        })),
+        scores: {
+          player1:
+            Object.values(currentRoomState.players).find(
+              (p) => p.side === "left"
+            )?.score || 0,
+          player2:
+            Object.values(currentRoomState.players).find(
+              (p) => p.side === "right"
+            )?.score || 0,
+        },
+        phase: currentRoomState.phase,
+      });
+    }
   }, gameConstants.SERVER_TICK_RATE_MS);
 }
 function stopGameLoop(roomId: string) {

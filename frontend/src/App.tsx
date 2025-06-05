@@ -4,11 +4,13 @@ import WelcomeScreen from "./components/WelcomeScreen";
 import socket from "./socket";
 import GamePage from "./components/GamePage";
 import { GamePhase, PlayerState, BallState } from "./shared/types";
+import GameOver from "./components/GameOver";
 
 function App() {
   const [currentPage, setCurrentPage] = React.useState<
     "welcome" | "game" | "endgame"
   >("welcome");
+  const [winnerName, setWinnerName] = React.useState<string | null>(null);
   const [currentRoomId, setCurrentRoomId] = React.useState<string | null>(null);
   const [playerSide, setPlayerSide] = React.useState<"left" | "right" | null>(
     null
@@ -60,6 +62,16 @@ function App() {
     socket.on("roomFull", () => {
       console.log("roomFull event");
       setRoomFullError("Room is full, please try another room.");
+    });
+
+    socket.on("gameOver", (data: { winnerName: string }) => {
+      setCurrentPage("endgame");
+      setGamePhase(GamePhase.GAME_OVER);
+      setWinnerName(data.winnerName);
+      setPlayerStates(null);
+      setBallState(null);
+      setOpponentName(null);
+      setPlayerSide(null);
     });
 
     socket.on(
@@ -179,6 +191,7 @@ function App() {
             ballState={ballState!}
           />
         )}
+        {currentPage === "endgame" && <GameOver winnerName={winnerName} />}
       </header>
     </div>
   );
